@@ -1,5 +1,10 @@
 import logging
 
+from sqlalchemy import (
+    Boolean,
+    true,
+    update,
+)
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ... import errors
@@ -115,3 +120,53 @@ async def set_survey_mission_status(
     return await mission_queries.get_survey_mission(
         session, identifiers.SurveyMissionId(survey_mission_id)
     )
+
+
+async def bulk_publish_valid_survey_missions_for_project(
+    session: AsyncSession,
+    project_id: identifiers.ProjectId,
+) -> list[identifiers.SurveyMissionId]:
+    """Publish every already-valid, not-yet-published mission of a project.
+
+    A mission's own validity does not depend on its parent project, so when
+    the project (re)becomes valid there is no need to re-validate its
+    missions - those already marked valid can be published directly from
+    their stored validation result. Returns the ids of the missions that
+    got published, so callers can further cascade to those missions' own
+    records.
+    """
+    result = await session.execute(
+        update(models.SurveyMission)
+        .where(models.SurveyMission.project_id == project_id)
+        .where(models.SurveyMission.status != SurveyMissionStatus.PUBLISHED)
+        .where(
+            models.SurveyMission.validation_result["is_valid"].astext.cast(Boolean)
+            == true()
+        )
+        .values(status=SurveyMissionStatus.PUBLISHED)
+        .returning(models.SurveyMission.id)
+    )
+    await session.commit()
+    return [identifiers.SurveyMissionId(row) for row in result.scalars().all()]
+
+
+async def bulk_unpublish_survey_missions_for_project(
+    session: AsyncSession,
+    project_id: identifiers.ProjectId,
+) -> list[identifiers.SurveyMissionId]:
+    """Unpublish every published mission of a project.
+
+    Used when the project becomes invalid, so its missions don't stay
+    published without a published parent. Returns the ids of the missions
+    that got unpublished, so callers can further cascade to those missions'
+    own records.
+    """
+    result = await session.execute(
+        update(models.SurveyMission)
+        .where(models.SurveyMission.project_id == project_id)
+        .where(models.SurveyMission.status == SurveyMissionStatus.PUBLISHED)
+        .values(status=SurveyMissionStatus.DRAFT)
+        .returning(models.SurveyMission.id)
+    )
+    await session.commit()
+    return [identifiers.SurveyMissionId(row) for row in result.scalars().all()]

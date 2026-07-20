@@ -3,6 +3,7 @@ import uuid
 
 import shapely
 from sqlalchemy import (
+    Boolean,
     bindparam,
     column,
     delete,
@@ -382,3 +383,49 @@ async def set_survey_related_record_status(
     return await record_queries.get_survey_related_record(
         session, identifiers.SurveyRelatedRecordId(survey_related_record_id)
     )
+
+
+async def bulk_publish_valid_survey_related_records(
+    session: AsyncSession,
+    survey_mission_id: identifiers.SurveyMissionId,
+) -> int:
+    """Publish every already-valid, not-yet-published record of a survey mission.
+
+    A record's own validity does not depend on its parent mission, so when the
+    mission (re)becomes valid there is no need to re-validate its records -
+    those already marked valid can be published directly from their stored
+    validation result.
+    """
+    result = await session.execute(
+        update(models.SurveyRelatedRecord)
+        .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
+        .where(models.SurveyRelatedRecord.status != SurveyRelatedRecordStatus.PUBLISHED)
+        .where(
+            models.SurveyRelatedRecord.validation_result["is_valid"].astext.cast(
+                Boolean
+            )
+            == true()
+        )
+        .values(status=SurveyRelatedRecordStatus.PUBLISHED)
+    )
+    await session.commit()
+    return result.rowcount
+
+
+async def bulk_unpublish_survey_related_records(
+    session: AsyncSession,
+    survey_mission_id: identifiers.SurveyMissionId,
+) -> int:
+    """Unpublish every published record of a survey mission.
+
+    Used when the mission (or its parent project) becomes invalid, so its
+    records don't stay published without a published parent.
+    """
+    result = await session.execute(
+        update(models.SurveyRelatedRecord)
+        .where(models.SurveyRelatedRecord.survey_mission_id == survey_mission_id)
+        .where(models.SurveyRelatedRecord.status == SurveyRelatedRecordStatus.PUBLISHED)
+        .values(status=SurveyRelatedRecordStatus.DRAFT)
+    )
+    await session.commit()
+    return result.rowcount

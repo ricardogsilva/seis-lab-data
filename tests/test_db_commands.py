@@ -2,6 +2,7 @@ import uuid
 
 import pytest
 
+from seis_lab_data import constants
 from seis_lab_data.db.commands import (
     datasetcategories as category_commands,
     projects as project_commands,
@@ -459,3 +460,213 @@ async def test_bulk_update_manually_selected_records_replaces_related_records(
             session, identifiers.SurveyRelatedRecordId(second_record.id)
         )
         assert len(related_to) == 0
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_bulk_publish_valid_survey_related_records(
+    db,
+    db_session_maker,
+    sample_survey_related_records,
+    bootstrap_dataset_categories,
+    bootstrap_workflow_stages,
+    admin_user,
+):
+    # first_record and second_record belong to different survey missions
+    first_record, second_record = sample_survey_related_records
+    dataset_category = [
+        c for c in bootstrap_dataset_categories if c.name["en"] == "bathymetry"
+    ][0]
+    workflow_stage = [
+        w for w in bootstrap_workflow_stages if w.name["en"] == "raw data"
+    ][0]
+    async with db_session_maker() as session:
+        # an invalid sibling record, on the same mission as first_record
+        invalid_sibling = await record_commands.create_survey_related_record(
+            session,
+            record_schemas.SurveyRelatedRecordCreate(
+                id=identifiers.SurveyRelatedRecordId(uuid.uuid4()),
+                survey_mission_id=identifiers.SurveyMissionId(
+                    first_record.survey_mission_id
+                ),
+                owner_id=admin_user.id,
+                name=common_schemas.LocalizableDraftName(en="Invalid sibling record"),
+                description=common_schemas.LocalizableDraftDescription(
+                    en="An invalid sibling record"
+                ),
+                dataset_category_id=identifiers.DatasetCategoryId(dataset_category.id),
+                workflow_stage_id=identifiers.WorkflowStageId(workflow_stage.id),
+                relative_path="invalid-sibling",
+            ),
+        )
+        fresh_first = await record_queries.get_survey_related_record(
+            session, identifiers.SurveyRelatedRecordId(first_record.id)
+        )
+        fresh_second = await record_queries.get_survey_related_record(
+            session, identifiers.SurveyRelatedRecordId(second_record.id)
+        )
+        await record_commands.update_survey_related_record_validation_result(
+            session, fresh_first, validation_result={"is_valid": True, "errors": None}
+        )
+        await record_commands.update_survey_related_record_validation_result(
+            session, fresh_second, validation_result={"is_valid": True, "errors": None}
+        )
+        # invalid_sibling is left with its default (not valid) validation result
+
+        published_count = (
+            await record_commands.bulk_publish_valid_survey_related_records(
+                session, identifiers.SurveyMissionId(first_record.survey_mission_id)
+            )
+        )
+        assert published_count == 1
+
+        published_first = await record_queries.get_survey_related_record(
+            session, identifiers.SurveyRelatedRecordId(first_record.id)
+        )
+        untouched_sibling = await record_queries.get_survey_related_record(
+            session, identifiers.SurveyRelatedRecordId(invalid_sibling.id)
+        )
+        untouched_second = await record_queries.get_survey_related_record(
+            session, identifiers.SurveyRelatedRecordId(second_record.id)
+        )
+        assert published_first.status == constants.SurveyRelatedRecordStatus.PUBLISHED
+        assert untouched_sibling.status != constants.SurveyRelatedRecordStatus.PUBLISHED
+        # second_record is valid too, but belongs to a different mission
+        assert untouched_second.status != constants.SurveyRelatedRecordStatus.PUBLISHED
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_bulk_unpublish_survey_related_records(
+    db,
+    db_session_maker,
+    sample_survey_related_records,
+):
+    # first_record and second_record belong to different survey missions
+    first_record, second_record = sample_survey_related_records
+    async with db_session_maker() as session:
+        await record_commands.set_survey_related_record_status(
+            session,
+            identifiers.SurveyRelatedRecordId(first_record.id),
+            constants.SurveyRelatedRecordStatus.PUBLISHED,
+        )
+        await record_commands.set_survey_related_record_status(
+            session,
+            identifiers.SurveyRelatedRecordId(second_record.id),
+            constants.SurveyRelatedRecordStatus.PUBLISHED,
+        )
+
+        unpublished_count = await record_commands.bulk_unpublish_survey_related_records(
+            session, identifiers.SurveyMissionId(first_record.survey_mission_id)
+        )
+        assert unpublished_count == 1
+        updated_first = await record_queries.get_survey_related_record(
+            session, identifiers.SurveyRelatedRecordId(first_record.id)
+        )
+        untouched_second = await record_queries.get_survey_related_record(
+            session, identifiers.SurveyRelatedRecordId(second_record.id)
+        )
+        assert updated_first.status == constants.SurveyRelatedRecordStatus.DRAFT
+        # second_record belongs to a different mission and stays published
+        assert untouched_second.status == constants.SurveyRelatedRecordStatus.PUBLISHED
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_bulk_publish_valid_survey_missions_for_project(
+    db,
+    db_session_maker,
+    sample_survey_missions,
+):
+    missions_by_project = {}
+    for mission in sample_survey_missions:
+        missions_by_project.setdefault(mission.project_id, []).append(mission)
+    project_id, project_missions = next(
+        (pid, ms) for pid, ms in missions_by_project.items() if len(ms) >= 2
+    )
+    valid_mission, invalid_mission = project_missions[0], project_missions[1]
+    other_project_mission = next(
+        m for m in sample_survey_missions if m.project_id != project_id
+    )
+
+    async with db_session_maker() as session:
+        fresh_valid = await mission_queries.get_survey_mission(
+            session, identifiers.SurveyMissionId(valid_mission.id)
+        )
+        await mission_commands.update_survey_mission_validation_result(
+            session, fresh_valid, validation_result={"is_valid": True, "errors": None}
+        )
+        # invalid_mission is left with its default (not valid) validation result
+
+        published_ids = (
+            await mission_commands.bulk_publish_valid_survey_missions_for_project(
+                session, identifiers.ProjectId(project_id)
+            )
+        )
+        assert published_ids == [identifiers.SurveyMissionId(valid_mission.id)]
+
+        published = await mission_queries.get_survey_mission(
+            session, identifiers.SurveyMissionId(valid_mission.id)
+        )
+        untouched_invalid = await mission_queries.get_survey_mission(
+            session, identifiers.SurveyMissionId(invalid_mission.id)
+        )
+        untouched_other = await mission_queries.get_survey_mission(
+            session, identifiers.SurveyMissionId(other_project_mission.id)
+        )
+        assert published.status == constants.SurveyMissionStatus.PUBLISHED
+        assert untouched_invalid.status != constants.SurveyMissionStatus.PUBLISHED
+        # other_project_mission is valid-or-not is irrelevant - different project
+        assert untouched_other.status != constants.SurveyMissionStatus.PUBLISHED
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_bulk_unpublish_survey_missions_for_project(
+    db,
+    db_session_maker,
+    sample_survey_missions,
+):
+    missions_by_project = {}
+    for mission in sample_survey_missions:
+        missions_by_project.setdefault(mission.project_id, []).append(mission)
+    project_id, project_missions = next(
+        (pid, ms) for pid, ms in missions_by_project.items() if len(ms) >= 2
+    )
+    first_mission, second_mission = project_missions[0], project_missions[1]
+    other_project_mission = next(
+        m for m in sample_survey_missions if m.project_id != project_id
+    )
+
+    async with db_session_maker() as session:
+        await mission_commands.set_survey_mission_status(
+            session,
+            identifiers.SurveyMissionId(first_mission.id),
+            constants.SurveyMissionStatus.PUBLISHED,
+        )
+        await mission_commands.set_survey_mission_status(
+            session,
+            identifiers.SurveyMissionId(other_project_mission.id),
+            constants.SurveyMissionStatus.PUBLISHED,
+        )
+
+        unpublished_ids = (
+            await mission_commands.bulk_unpublish_survey_missions_for_project(
+                session, identifiers.ProjectId(project_id)
+            )
+        )
+        assert unpublished_ids == [identifiers.SurveyMissionId(first_mission.id)]
+
+        updated_first = await mission_queries.get_survey_mission(
+            session, identifiers.SurveyMissionId(first_mission.id)
+        )
+        untouched_second = await mission_queries.get_survey_mission(
+            session, identifiers.SurveyMissionId(second_mission.id)
+        )
+        untouched_other = await mission_queries.get_survey_mission(
+            session, identifiers.SurveyMissionId(other_project_mission.id)
+        )
+        assert updated_first.status == constants.SurveyMissionStatus.DRAFT
+        assert untouched_second.status != constants.SurveyMissionStatus.PUBLISHED
+        # other_project_mission belongs to a different project and stays published
+        assert untouched_other.status == constants.SurveyMissionStatus.PUBLISHED

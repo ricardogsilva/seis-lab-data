@@ -51,25 +51,33 @@ async def create_survey_related_record(
             raise errors.SeisLabDataError(
                 "User is not allowed to create a survey-related record."
             )
-        if (mission_status := survey_mission.status) not in (
-            constants.SurveyMissionStatus.DRAFT,
-            constants.SurveyMissionStatus.UNDER_DISCOVERY,
-        ):
-            raise errors.SeisLabDataError(
-                f"Cannot create survey-related record because parent survey "
-                f"mission's status is {mission_status}"
-            )
-        if (project_status := survey_mission.project.status) not in (
-            constants.ProjectStatus.DRAFT,
-            constants.ProjectStatus.UNDER_DISCOVERY,
-        ):
-            raise errors.SeisLabDataError(
-                f"Cannot create survey-related record because parent project's "
-                f"status is {project_status}"
-            )
         survey_record = await record_commands.create_survey_related_record(
             session, to_create
         )
+        record_id = identifiers.SurveyRelatedRecordId(survey_record.id)
+        validated_record = await validate_survey_related_record(
+            request_id=request_id,
+            survey_related_record_id=record_id,
+            initiator=initiator,
+            session=session,
+            event_dispatcher=event_dispatcher,
+        )
+        if all(
+            (
+                validated_record.validation_result.get("is_valid"),
+                (validated_record.survey_mission.validation_result or {}).get(
+                    "is_valid"
+                ),
+            )
+        ):
+            await change_survey_related_record_status(
+                request_id=request_id,
+                target_status=constants.SurveyRelatedRecordStatus.PUBLISHED,
+                survey_related_record_id=record_id,
+                initiator=initiator,
+                session=session,
+                event_dispatcher=event_dispatcher,
+            )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
             event_schemas.ResourceModificationEvent(
@@ -82,7 +90,7 @@ async def create_survey_related_record(
                 details=str(err),
             )
         )
-        return None
+        raise
 
     await event_dispatcher(
         event_schemas.ResourceModificationEvent(
@@ -94,7 +102,7 @@ async def create_survey_related_record(
             initiator=initiator.id,
         )
     )
-    return survey_record
+    return validated_record
 
 
 async def change_survey_related_record_status(
@@ -137,6 +145,7 @@ async def change_survey_related_record_status(
     except errors.SeisLabDataError as err:
         await event_dispatcher(
             event_schemas.ResourceStatusChangedEvent(
+                request_id=request_id,
                 initiator=initiator.id,
                 resource_type=constants.ResourceType.RECORD,
                 resource_id=str(survey_related_record_id),
@@ -166,7 +175,7 @@ async def validate_survey_related_record(
     initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
-) -> models.SurveyRelatedRecord | None:
+) -> models.SurveyRelatedRecord:
     try:
         if (
             survey_related_record := await record_queries.get_survey_related_record(
@@ -195,7 +204,7 @@ async def validate_survey_related_record(
                 details=str(err),
             )
         )
-        return None
+        raise
 
     validation_errors = []
     try:
@@ -384,7 +393,7 @@ async def get_survey_related_record(
             f"User is not allowed to read survey-related "
             f"record {survey_related_record_id!r}."
         )
-    record_id: identifiers.SurveyRelatedRecordId = record.id
+    record_id = identifiers.SurveyRelatedRecordId(record.id)
     records_related_to = (
         await record_queries.list_survey_related_record_related_to_records(
             session, record_id
@@ -406,44 +415,74 @@ async def update_survey_related_record(
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
 ) -> models.SurveyRelatedRecord:
-    if (
-        survey_related_record := await record_queries.get_survey_related_record(
-            session, survey_related_record_id
+    try:
+        if (
+            survey_related_record := await record_queries.get_survey_related_record(
+                session, survey_related_record_id
+            )
+        ) is None:
+            raise errors.SeisLabDataError(
+                f"Survey-related id {survey_related_record_id!r} does not exist."
+            )
+        if not record_permissions.can_update_survey_related_record(
+            initiator, survey_related_record
+        ):
+            raise errors.SeisLabDataError(
+                "User not allowed to update survey-related record."
+            )
+        if (
+            mission_status := survey_related_record.survey_mission.status
+        ) != constants.SurveyMissionStatus.DRAFT:
+            raise errors.SeisLabDataError(
+                f"Cannot update survey-related record because parent survey "
+                f"mission's status is {mission_status}"
+            )
+        if (
+            project_status := survey_related_record.survey_mission.project.status
+        ) != constants.ProjectStatus.DRAFT:
+            raise errors.SeisLabDataError(
+                f"Cannot update survey-related record because parent project's "
+                f"status is {project_status}"
+            )
+        await record_commands.update_survey_related_record(
+            session, survey_related_record, to_update
         )
-    ) is None:
-        raise errors.SeisLabDataError(
-            f"Survey-related record with id {survey_related_record_id} does not exist."
+        validated_record = await validate_survey_related_record(
+            request_id=request_id,
+            survey_related_record_id=survey_related_record_id,
+            initiator=initiator,
+            session=session,
+            event_dispatcher=event_dispatcher,
         )
-    if not record_permissions.can_update_survey_related_record(
-        initiator, survey_related_record
-    ):
-        raise errors.SeisLabDataError(
-            "User is not allowed to update survey-related record."
+        if all(
+            (
+                validated_record.validation_result.get("is_valid"),
+                (validated_record.survey_mission.validation_result or {}).get(
+                    "is_valid"
+                ),
+            )
+        ):
+            await change_survey_related_record_status(
+                request_id=request_id,
+                target_status=constants.SurveyRelatedRecordStatus.PUBLISHED,
+                survey_related_record_id=survey_related_record_id,
+                initiator=initiator,
+                session=session,
+                event_dispatcher=event_dispatcher,
+            )
+    except errors.SeisLabDataError as err:
+        await event_dispatcher(
+            event_schemas.ResourceModificationEvent(
+                initiator=initiator.id,
+                resource_type=constants.ResourceType.RECORD,
+                resource_id=str(survey_related_record_id),
+                request_id=request_id,
+                modification=constants.ResourceModification.UPDATED,
+                succeeded=False,
+                details=str(err),
+            )
         )
-    if (
-        mission_status := survey_related_record.survey_mission.status
-    ) != constants.SurveyMissionStatus.DRAFT:
-        raise errors.SeisLabDataError(
-            f"Cannot update survey-related record because parent survey "
-            f"mission's status is {mission_status}"
-        )
-    if (
-        project_status := survey_related_record.survey_mission.project.status
-    ) != constants.ProjectStatus.DRAFT:
-        raise errors.SeisLabDataError(
-            f"Cannot update survey-related record because parent project's "
-            f"status is {project_status}"
-        )
-    updated_survey_related_record = await record_commands.update_survey_related_record(
-        session, survey_related_record, to_update
-    )
-    await validate_survey_related_record(
-        request_id=request_id,
-        survey_related_record_id=survey_related_record_id,
-        initiator=initiator,
-        session=session,
-        event_dispatcher=event_dispatcher,
-    )
+        raise
     await event_dispatcher(
         event_schemas.ResourceModificationEvent(
             initiator=initiator.id,
@@ -454,7 +493,7 @@ async def update_survey_related_record(
             succeeded=True,
         )
     )
-    return updated_survey_related_record
+    return validated_record
 
 
 async def bulk_update_survey_related_records(
@@ -473,7 +512,7 @@ async def bulk_update_survey_related_records(
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
 ) -> int | None:
-    """Bulk-update either a manually-selected set of records or all matching a filter.
+    """Bulk-update either a manually selected set of records or all matching a filter.
 
     `selected` and the filter/`excluded_record_ids` arguments are mutually
     exclusive ways of specifying which records to update, mirroring the two

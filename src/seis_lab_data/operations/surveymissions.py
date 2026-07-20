@@ -11,6 +11,7 @@ from .. import (
 )
 from ..db import models
 from ..db.commands import surveymissions as mission_commands
+from ..db.commands import surveyrelatedrecords as record_commands
 from ..db.queries import (
     projects as project_queries,
     surveymissions as mission_queries,
@@ -47,17 +48,31 @@ async def create_survey_mission(
             raise errors.SeisLabDataError(
                 f"User {initiator!r} is not allowed to create a survey mission."
             )
-        if (project_status := project.status) not in (
-            constants.ProjectStatus.DRAFT,
-            constants.ProjectStatus.UNDER_DISCOVERY,
-        ):
-            raise errors.SeisLabDataError(
-                f"Cannot create survey mission because parent project's "
-                f"status is {project_status}"
-            )
         survey_mission = await mission_commands.create_survey_mission(
             session, to_create
         )
+        mission_id = identifiers.SurveyMissionId(survey_mission.id)
+        validated_mission = await validate_survey_mission(
+            request_id=request_id,
+            survey_mission_id=mission_id,
+            initiator=initiator,
+            session=session,
+            event_dispatcher=event_dispatcher,
+        )
+        if all(
+            (
+                validated_mission.validation_result.get("is_valid"),
+                (validated_mission.project.validation_result or {}).get("is_valid"),
+            )
+        ):
+            await change_survey_mission_status(
+                request_id=request_id,
+                target_status=constants.SurveyMissionStatus.PUBLISHED,
+                survey_mission_id=mission_id,
+                initiator=initiator,
+                session=session,
+                event_dispatcher=event_dispatcher,
+            )
     except errors.SeisLabDataError as err:
         logger.error(str(err))
         await event_dispatcher(
@@ -86,6 +101,7 @@ async def create_survey_mission(
 
 
 async def change_survey_mission_status(
+    *,
     request_id: identifiers.RequestId,
     target_status: constants.SurveyMissionStatus,
     survey_mission_id: identifiers.SurveyMissionId,
@@ -149,7 +165,7 @@ async def validate_survey_mission(
     initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
-) -> models.SurveyMission | None:
+) -> models.SurveyMission:
     try:
         if (
             survey_mission := await mission_queries.get_survey_mission(
@@ -178,7 +194,7 @@ async def validate_survey_mission(
                 details=str(err),
             )
         )
-        return None
+        raise
 
     validation_errors = []
     try:
@@ -255,24 +271,66 @@ async def update_survey_mission(
             )
         ) is None:
             raise errors.SeisLabDataError(
-                f"Survey mission with id {survey_mission_id} does not exist."
+                f"Survey mission {survey_mission_id!r} does not exist."
             )
         if not mission_permissions.can_update_survey_mission(initiator, survey_mission):
-            raise errors.SeisLabDataError(
-                "User is not allowed to update survey mission."
-            )
-        if survey_mission.status != constants.SurveyMissionStatus.DRAFT:
-            raise errors.SeisLabDataError(
-                f"Cannot update survey mission with status {survey_mission.status}"
-            )
-        if survey_mission.project.status != constants.ProjectStatus.DRAFT:
-            raise errors.SeisLabDataError(
-                f"Cannot update survey mission because parent project's status "
-                f"is {survey_mission.project.status}"
-            )
-        updated_survey_mission = await mission_commands.update_survey_mission(
-            session, survey_mission, to_update
+            raise errors.SeisLabDataError("User not allowed to update survey mission.")
+        await mission_commands.update_survey_mission(session, survey_mission, to_update)
+        validated_mission = await validate_survey_mission(
+            request_id=request_id,
+            survey_mission_id=survey_mission_id,
+            initiator=initiator,
+            session=session,
+            event_dispatcher=event_dispatcher,
         )
+        if all(
+            (
+                validated_mission.validation_result.get("is_valid"),
+                (validated_mission.project.validation_result or {}).get("is_valid"),
+            )
+        ):
+            if validated_mission.status != constants.SurveyMissionStatus.PUBLISHED:
+                await change_survey_mission_status(
+                    request_id=request_id,
+                    target_status=constants.SurveyMissionStatus.PUBLISHED,
+                    survey_mission_id=survey_mission_id,
+                    initiator=initiator,
+                    session=session,
+                    event_dispatcher=event_dispatcher,
+                )
+            published_count = (
+                await record_commands.bulk_publish_valid_survey_related_records(
+                    session, survey_mission_id
+                )
+            )
+            if published_count:
+                await event_dispatcher(
+                    event_schemas.BulkResourceModificationEvent(
+                        initiator=initiator.id,
+                        request_id=request_id,
+                        resource_type=constants.ResourceType.RECORD,
+                        modification=constants.BulkResourceModification.UPDATED,
+                        succeeded=True,
+                        affected_count=published_count,
+                    )
+                )
+        else:
+            unpublished_count = (
+                await record_commands.bulk_unpublish_survey_related_records(
+                    session, survey_mission_id
+                )
+            )
+            if unpublished_count:
+                await event_dispatcher(
+                    event_schemas.BulkResourceModificationEvent(
+                        initiator=initiator.id,
+                        request_id=request_id,
+                        resource_type=constants.ResourceType.RECORD,
+                        modification=constants.BulkResourceModification.UPDATED,
+                        succeeded=True,
+                        affected_count=unpublished_count,
+                    )
+                )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
             event_schemas.ResourceModificationEvent(
@@ -285,15 +343,8 @@ async def update_survey_mission(
                 details=str(err),
             )
         )
-        return None
+        raise
 
-    await validate_survey_mission(
-        request_id=request_id,
-        survey_mission_id=survey_mission_id,
-        initiator=initiator,
-        session=session,
-        event_dispatcher=event_dispatcher,
-    )
     await event_dispatcher(
         event_schemas.ResourceModificationEvent(
             resource_type=constants.ResourceType.MISSION,
@@ -304,7 +355,7 @@ async def update_survey_mission(
             initiator=initiator.id,
         )
     )
-    return updated_survey_mission
+    return validated_mission
 
 
 async def delete_survey_mission(

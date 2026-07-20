@@ -12,6 +12,8 @@ from .. import (
 from ..permissions import projects as project_permissions
 from ..db import models
 from ..db.commands import projects as project_commands
+from ..db.commands import surveymissions as mission_commands
+from ..db.commands import surveyrelatedrecords as record_commands
 from ..db.queries import projects as project_queries
 from ..schemas import (
     events as event_schemas,
@@ -37,6 +39,23 @@ async def create_project(
         if not project_permissions.can_create_project(initiator):
             raise errors.SeisLabDataError("User is not allowed to create a project.")
         project = await project_commands.create_project(session, to_create)
+        project_id = identifiers.ProjectId(project.id)
+        validated_project = await validate_project(
+            request_id=request_id,
+            project_id=project_id,
+            initiator=initiator,
+            session=session,
+            event_dispatcher=event_dispatcher,
+        )
+        if validated_project.validation_result.get("is_valid"):
+            await change_project_status(
+                request_id=request_id,
+                target_status=constants.ProjectStatus.PUBLISHED,
+                project_id=project_id,
+                initiator=initiator,
+                session=session,
+                event_dispatcher=event_dispatcher,
+            )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
             event_schemas.ResourceModificationEvent(
@@ -122,7 +141,7 @@ async def validate_project(
     initiator: user_schemas.User,
     session: AsyncSession,
     event_dispatcher: dispatch.EventDispatcherProtocol,
-) -> models.Project | None:
+) -> models.Project:
     try:
         if (project := await project_queries.get_project(session, project_id)) is None:
             raise errors.SeisLabDataError(
@@ -143,7 +162,7 @@ async def validate_project(
                 details=str(err),
             )
         )
-        return None
+        raise
 
     validation_errors = []
     try:
@@ -216,13 +235,93 @@ async def update_project(
             )
         if not project_permissions.can_update_project(initiator, project):
             raise errors.SeisLabDataError("User is not allowed to update project.")
-        if project.status != constants.ProjectStatus.DRAFT:
-            raise errors.SeisLabDataError(
-                f"Cannot update project with status {project.status}."
-            )
-        updated_project = await project_commands.update_project(
-            session, project, to_update
+        await project_commands.update_project(session, project, to_update)
+        validated_project = await validate_project(
+            request_id=request_id,
+            project_id=project_id,
+            initiator=initiator,
+            session=session,
+            event_dispatcher=event_dispatcher,
         )
+        if validated_project.validation_result.get("is_valid"):
+            if validated_project.status != constants.ProjectStatus.PUBLISHED:
+                await change_project_status(
+                    request_id=request_id,
+                    target_status=constants.ProjectStatus.PUBLISHED,
+                    project_id=project_id,
+                    initiator=initiator,
+                    session=session,
+                    event_dispatcher=event_dispatcher,
+                )
+            published_mission_ids = (
+                await mission_commands.bulk_publish_valid_survey_missions_for_project(
+                    session, project_id
+                )
+            )
+            if published_mission_ids:
+                await event_dispatcher(
+                    event_schemas.BulkResourceModificationEvent(
+                        initiator=initiator.id,
+                        request_id=request_id,
+                        resource_type=constants.ResourceType.MISSION,
+                        modification=constants.BulkResourceModification.UPDATED,
+                        succeeded=True,
+                        affected_count=len(published_mission_ids),
+                    )
+                )
+            published_record_count = 0
+            for mission_id in published_mission_ids:
+                published_record_count += (
+                    await record_commands.bulk_publish_valid_survey_related_records(
+                        session, mission_id
+                    )
+                )
+            if published_record_count:
+                await event_dispatcher(
+                    event_schemas.BulkResourceModificationEvent(
+                        initiator=initiator.id,
+                        request_id=request_id,
+                        resource_type=constants.ResourceType.RECORD,
+                        modification=constants.BulkResourceModification.UPDATED,
+                        succeeded=True,
+                        affected_count=published_record_count,
+                    )
+                )
+        else:
+            unpublished_mission_ids = (
+                await mission_commands.bulk_unpublish_survey_missions_for_project(
+                    session, project_id
+                )
+            )
+            if unpublished_mission_ids:
+                await event_dispatcher(
+                    event_schemas.BulkResourceModificationEvent(
+                        initiator=initiator.id,
+                        request_id=request_id,
+                        resource_type=constants.ResourceType.MISSION,
+                        modification=constants.BulkResourceModification.UPDATED,
+                        succeeded=True,
+                        affected_count=len(unpublished_mission_ids),
+                    )
+                )
+            unpublished_record_count = 0
+            for mission_id in unpublished_mission_ids:
+                unpublished_record_count += (
+                    await record_commands.bulk_unpublish_survey_related_records(
+                        session, mission_id
+                    )
+                )
+            if unpublished_record_count:
+                await event_dispatcher(
+                    event_schemas.BulkResourceModificationEvent(
+                        initiator=initiator.id,
+                        request_id=request_id,
+                        resource_type=constants.ResourceType.RECORD,
+                        modification=constants.BulkResourceModification.UPDATED,
+                        succeeded=True,
+                        affected_count=unpublished_record_count,
+                    )
+                )
     except errors.SeisLabDataError as err:
         await event_dispatcher(
             event_schemas.ResourceModificationEvent(
@@ -235,15 +334,8 @@ async def update_project(
                 details=str(err),
             )
         )
-        return None
+        raise
 
-    await validate_project(
-        request_id=request_id,
-        project_id=project_id,
-        initiator=initiator,
-        session=session,
-        event_dispatcher=event_dispatcher,
-    )
     await event_dispatcher(
         event_schemas.ResourceModificationEvent(
             initiator=initiator.id,
@@ -254,7 +346,7 @@ async def update_project(
             succeeded=True,
         )
     )
-    return updated_project
+    return validated_project
 
 
 async def delete_project(
