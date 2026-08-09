@@ -314,12 +314,15 @@ services:
       MKDOCS_SITE_URL: "https://seis-lab-data.ipma.pt/docs"
     labels:
       - "traefik.enable=true"
+      - "traefik.http.middlewares.docs-add-trailing-slash.redirectregex.regex=^(https?://[^/]+/docs)$$"
+      - "traefik.http.middlewares.docs-add-trailing-slash.redirectregex.replacement=$${1}/"
+      - "traefik.http.middlewares.docs-add-trailing-slash.redirectregex.permanent=true"
       - "traefik.http.middlewares.docs-stripprefix.stripprefix.prefixes=/docs"
       - "traefik.http.routers.docs-router.rule=Host(`seis-lab-data.ipma.pt`) && PathPrefix(`/docs`)"
       - "traefik.http.routers.docs-router.entrypoints=websecure"
       - "traefik.http.routers.docs-router.tls=true"
       - "traefik.http.routers.docs-router.priority=90"
-      - "traefik.http.routers.docs-router.middlewares=docs-stripprefix"
+      - "traefik.http.routers.docs-router.middlewares=docs-add-trailing-slash,docs-stripprefix"
       - "traefik.http.services.docs.loadbalancer.server.port=8000"
 
 configs:
