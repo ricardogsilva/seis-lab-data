@@ -1,5 +1,8 @@
 {% from "macro-jsoneditor-field.html" import jsoneditor_field %}
-<form>
+<form
+        data-signals="{updating: false}"
+        data-on:datastar-fetch="evt.detail.type === 'error' && ($updating = false)"
+>
     {{ form.request_id() }}
     {{ jsoneditor_field(form.name) }}
 
@@ -15,19 +18,16 @@
                     type="submit"
                     aria-label="submit-update-form"
                     class="btn btn-primary"
-                    data-on:click="@put('{{ url_for('dataset_categories:detail', dataset_category_id=item.id) }}', {
+                    data-on:click="$updating = true; @put('{{ url_for('dataset_categories:detail', dataset_category_id=item.id) }}', {
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"
-                    data-indicator="updating"
                     data-attr:disabled="$updating"
-                    data-text="$updating ? '{{ _('updating dataset category...') | capitalize }}' : '{{ _('update dataset category') | capitalize }}'"
             >
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"
+                      data-attr:hidden="!$updating"></span>
+                <span data-text="$updating ? '{{ _('updating dataset category...') | capitalize }}' : '{{ _('update dataset category') | capitalize }}'"></span>
             </button>
-            <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                 data-attr:hidden="!$updating">
-                <span class="visually-hidden">{{ _("loading...") | capitalize }}</span>
-            </div>
         </div>
     </div>
 </form>

@@ -695,6 +695,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             logger.debug(f"{form_instance.errors=}")
 
             async def stream_validation_failed_events():
+                yield ServerSentEventGenerator.patch_signals({"submitting": False})
                 template = template_processor.get_template(
                     "survey-missions/update-form.html"
                 )
@@ -787,6 +788,7 @@ class SurveyMissionDetailEndpoint(HTTPEndpoint):
             )
 
             async def event_streamer():
+                yield ServerSentEventGenerator.patch_signals({"posting": False})
                 yield ServerSentEventGenerator.patch_elements(
                     rendered,
                     selector=webui_schemas.selector_info.main_content_selector,

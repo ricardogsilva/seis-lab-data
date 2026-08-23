@@ -59,10 +59,29 @@ async def handle_resource_modification_new_page(
     context: subscribers.HandlerContext,
     done: asyncio.Event | None = None,
 ) -> AsyncGenerator[DatastarEvent, None]:
-    if (
-        not message.succeeded
-    ):  # only send notification if the context has the same request_id
-        if context.request_id == message.request_id:
+    # this page only cares about the message that corresponds to its own creation request
+    if context.request_id != message.request_id:
+        return
+
+    # these resource types have no detail page of their own, so - unlike the
+    # others handled below - we always send the user back to their listing
+    # page, regardless of whether creation succeeded, and report the outcome
+    # via a flash notification
+    list_page_route_name = {
+        constants.ResourceType.ASSET_DISCOVERY_CONFIG: "asset_discovery_configurations:list",
+        constants.ResourceType.CATEGORY: "dataset_categories:list",
+        constants.ResourceType.WORKFLOW_STAGE: "workflow_stages:list",
+    }.get(message.resource_type)
+
+    if list_page_route_name is not None:
+        if message.succeeded:
+            async for event in flash_ui_message_after_redirect(
+                webui_schemas.Notification(
+                    message=f"{message.resource_type.capitalize()} was {message.modification} successfully!"
+                )
+            ):
+                yield event
+        else:
             async for event in flash_ui_message_after_redirect(
                 webui_schemas.Notification(
                     message=f"{message.resource_type.capitalize()} could not be {message.modification}: {message.details}",
@@ -70,27 +89,30 @@ async def handle_resource_modification_new_page(
                 )
             ):
                 yield event
-    else:
-        async for event in flash_ui_message_after_redirect(
+        yield ServerSentEventGenerator.redirect(
+            str(context.url_resolver(list_page_route_name))
+        )
+        return
+
+    if not message.succeeded:
+        yield ServerSentEventGenerator.patch_signals({"submitting": False})
+        async for event in flash_ui_message_same_page(
             webui_schemas.Notification(
-                message=f"{message.resource_type.capitalize()} was {message.modification} successfully!"
+                message=f"{message.resource_type.capitalize()} could not be {message.modification}: {message.details}",
+                category="error",
             )
         ):
             yield event
+        return
+
+    async for event in flash_ui_message_after_redirect(
+        webui_schemas.Notification(
+            message=f"{message.resource_type.capitalize()} was {message.modification} successfully!"
+        )
+    ):
+        yield event
 
     match message.resource_type:
-        case constants.ResourceType.ASSET_DISCOVERY_CONFIG:
-            yield ServerSentEventGenerator.redirect(
-                str(context.url_resolver("asset_discovery_configurations:list"))
-            )
-        case constants.ResourceType.CATEGORY:
-            yield ServerSentEventGenerator.redirect(
-                str(context.url_resolver("dataset_categories:list"))
-            )
-        case constants.ResourceType.WORKFLOW_STAGE:
-            yield ServerSentEventGenerator.redirect(
-                str(context.url_resolver("workflow_stages:list"))
-            )
         case constants.ResourceType.PROJECT:
             yield ServerSentEventGenerator.redirect(
                 str(

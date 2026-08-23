@@ -410,6 +410,7 @@ class AssetDiscoveryConfigurationCollectionEndpoint(HTTPEndpoint):
             logger.debug("form did not validate")
 
             async def validation_event_streamer():
+                yield ServerSentEventGenerator.patch_signals({"submitting": False})
                 template = template_processor.get_template("discovery/create-form.html")
                 rendered = template.render(
                     request=request,
@@ -481,6 +482,7 @@ class AssetDiscoveryConfigurationDetailEndpoint(HTTPEndpoint):
             logger.debug(f"{form_instance.errors=}")
 
             async def event_streamer():
+                yield ServerSentEventGenerator.patch_signals({"updating": False})
                 template = template_processor.get_template("discovery/update-form.html")
                 rendered = template.render(
                     request=request,

@@ -1264,6 +1264,7 @@ class SurveyRelatedRecordDetailEndpoint(HTTPEndpoint):
             logger.debug(f"{form_instance.errors=}")
 
             async def stream_validation_failed_events():
+                yield ServerSentEventGenerator.patch_signals({"submitting": False})
                 template = template_processor.get_template(
                     "survey-related-records/update-form.html"
                 )

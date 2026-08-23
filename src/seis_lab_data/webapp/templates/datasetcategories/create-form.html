@@ -1,5 +1,8 @@
 {% from "macro-jsoneditor-field.html" import jsoneditor_field %}
-<form>
+<form
+        data-signals="{submitting: false}"
+        data-on:datastar-fetch="evt.detail.type === 'error' && ($submitting = false)"
+>
     {{ form.request_id() }}
     {{ jsoneditor_field(form.name) }}
     <output></output>
@@ -15,19 +18,16 @@
                     type="submit"
                     aria-label="submit-create-form"
                     class="btn btn-primary"
-                    data-on:click="@post('{{ url_for('dataset_categories:list') }}', {
+                    data-on:click="$submitting = true; @post('{{ url_for('dataset_categories:list') }}', {
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"
-                    data-indicator="submitting"
                     data-attr:disabled="$submitting"
-                    data-text="$submitting ? '{{ _('Creating dataset category...') }}' : '{{ _('Create dataset category') }}'"
             >
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"
+                      data-attr:hidden="!$submitting"></span>
+                <span data-text="$submitting ? '{{ _('Creating dataset category...') }}' : '{{ _('Create dataset category') }}'"></span>
             </button>
-            <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                 data-attr:hidden="!$submitting">
-                <span class="visually-hidden">{{ _("Loading...") }}</span>
-            </div>
         </div>
     </div>
 </form>

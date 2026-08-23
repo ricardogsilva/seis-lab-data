@@ -393,6 +393,7 @@ class DatasetCategoryCollectionEndpoint(HTTPEndpoint):
             logger.debug("form did not validate")
 
             async def validation_event_streamer():
+                yield ServerSentEventGenerator.patch_signals({"submitting": False})
                 template = template_processor.get_template(
                     "datasetcategories/create-form.html"
                 )
@@ -463,6 +464,7 @@ class DatasetCategoryDetailEndpoint(HTTPEndpoint):
             logger.debug(f"{form_instance.errors=}")
 
             async def event_streamer():
+                yield ServerSentEventGenerator.patch_signals({"updating": False})
                 template = template_processor.get_template(
                     "datasetcategories/update-form.html"
                 )

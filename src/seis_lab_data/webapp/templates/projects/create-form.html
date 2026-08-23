@@ -1,6 +1,7 @@
 {% import "macros.html" as macros %}
 <form
-        data-on:datastar-fetch="evt.detail.type === 'finished' && document.querySelector('bbox-map')?.initMap()"
+        data-signals="{submitting: false}"
+        data-on:datastar-fetch="evt.detail.type === 'finished' && document.querySelector('bbox-map')?.initMap(); evt.detail.type === 'error' && ($submitting = false)"
 >
     {{ form.request_id() }}
     {{ macros.render_localizable_field(form.name) }}
@@ -64,19 +65,16 @@
                     type="submit"
                     aria-label="submit-create-form"
                     class="btn btn-primary"
-                    data-on:click="@post('{{ url_for('projects:list') }}', {
+                    data-on:click="$submitting = true; @post('{{ url_for('projects:list') }}', {
                             contentType: 'form',
                             headers: {'X-CSRFToken': '{{ form.csrf_token.current_token }}'}
                         })"
-                    data-indicator="submitting"
                     data-attr:disabled="$submitting"
-                    data-text="$submitting ? '{{ _('Creating project...') }}' : '{{ _('Create project') }}'"
             >
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"
+                      data-attr:hidden="!$submitting"></span>
+                <span data-text="$submitting ? '{{ _('Creating project...') }}' : '{{ _('Create project') }}'"></span>
             </button>
-            <div class="spinner-border spinner-border-sm ms-3" role="status" aria-hidden="true"
-                 data-attr:hidden="!$submitting">
-                <span class="visually-hidden">{{ _("Loading...") }}</span>
-            </div>
         </div>
     </div>
 </form>

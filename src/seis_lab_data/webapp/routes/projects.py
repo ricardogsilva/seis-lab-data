@@ -610,6 +610,7 @@ class ProjectCollectionEndpoint(HTTPEndpoint):
             logger.debug("form did not validate")
 
             async def event_streamer():
+                yield ServerSentEventGenerator.patch_signals({"submitting": False})
                 template = template_processor.get_template("projects/create-form.html")
                 rendered = template.render(
                     request=request,
@@ -725,6 +726,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
             logger.debug(f"{form_instance.errors=}")
 
             async def event_streamer():
+                yield ServerSentEventGenerator.patch_signals({"updating": False})
                 template = template_processor.get_template("projects/update-form.html")
                 rendered = template.render(
                     request=request,
@@ -850,6 +852,7 @@ class ProjectDetailEndpoint(HTTPEndpoint):
 
             async def stream_validation_failed_events():
                 logger.debug("form did not validate")
+                yield ServerSentEventGenerator.patch_signals({"submitting": False})
                 template = template_processor.get_template(
                     "survey-missions/create-form.html"
                 )
