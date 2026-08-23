@@ -6,6 +6,8 @@
     <script src="{{ url_for('static', path='/js/jsoneditor.min.js') }}"></script>
 {% endblock head %}
 
+{% block title %}{{ _("new workflow stage") | capitalize }} - SeisLabData{% endblock %}
+
 {% block page_title %}
     {{ _("new workflow stage") | capitalize }}
 {% endblock page_title %}

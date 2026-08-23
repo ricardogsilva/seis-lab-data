@@ -6,6 +6,8 @@
 
 {% block header_extra_class %}text-center{% endblock %}
 
+{% block title %}{{ _("survey missions") | capitalize }} - SeisLabData{% endblock %}
+
 {% block head %}
     {{ super() }}
     <script type="module" src="{{ url_for('static', path='/js/maplibre-gl-v5.9.0.js') }}"></script>

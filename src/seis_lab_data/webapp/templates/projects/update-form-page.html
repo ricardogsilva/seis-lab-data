@@ -12,6 +12,8 @@
     <script src="{{ url_for('static', path='/js/jsoneditor.min.js') }}"></script>
 {% endblock head %}
 
+{% block title %}{{ _("edit project") | capitalize }} - SeisLabData{% endblock %}
+
 {% block page_title %}
     {{ _("edit project") | capitalize }}
 {% endblock page_title %}

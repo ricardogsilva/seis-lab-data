@@ -8,6 +8,8 @@ Users with create permission are linked to /projects/new, which is a separate st
 
 {% block resource_type_color_class %}bg-project{% endblock %}
 
+{% block title %}{{ _("Projects") }} - SeisLabData{% endblock %}
+
 {% block head %}
     {{ super() }}
     <script type="module" src="{{ url_for('static', path='/js/maplibre-gl-v5.9.0.js') }}"></script>

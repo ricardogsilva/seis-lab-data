@@ -6,6 +6,8 @@
     <script src="{{ url_for('static', path='/js/jsoneditor.min.js') }}"></script>
 {% endblock head %}
 
+{% block title %}{{ _("new dataset category") | capitalize }} - SeisLabData{% endblock %}
+
 {% block page_title %}
     {{ _("new dataset category") | capitalize }}
 {% endblock page_title %}

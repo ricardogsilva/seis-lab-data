@@ -10,6 +10,8 @@
     <script type="module" src="{{ url_for('static', path='/js/bbox-map.js') }}"></script>
 {% endblock head %}
 
+{% block title %}{{ _("new survey-related record") | capitalize }} - SeisLabData{% endblock %}
+
 {% block page_title %}
     {{ _("new survey-related record") | capitalize }}
 {% endblock page_title %}
