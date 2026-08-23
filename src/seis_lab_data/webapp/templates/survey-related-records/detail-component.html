@@ -24,9 +24,9 @@
                                 <p>{{ item.description | translate_localizable_string }}</p>
                                 <dl class="row">
                                     <dt class="col-sm-3">{{ _("dataset category") | capitalize }}</dt>
-                                    <dd class="col-sm-9"><span class="badge bg-dataset-category"><span class="material-icons-outlined me-1 fs-6">{{ icons.dataset_category }}</span>{% if item.dataset_category %}{{ item.dataset_category.name|translate_localizable_string }}{% else %}{{ _("unknown category") }}{% endif %}</span></dd>
+                                    <dd class="col-sm-9"><span class="badge badge-outline text-dataset-category"><span class="material-icons-outlined me-1 fs-6">{{ icons.dataset_category }}</span>{% if item.dataset_category %}{{ item.dataset_category.name|translate_localizable_string }}{% else %}{{ _("unknown category") }}{% endif %}</span></dd>
                                     <dt class="col-sm-3">{{ _("workflow stage") | capitalize }}</dt>
-                                    <dd class="col-sm-9"><span class="badge bg-workflow-stage"><span class="material-icons-outlined me-1 fs-6">{{ icons.workflow_stage }}</span>{% if item.workflow_stage %}{{ item.workflow_stage.name|translate_localizable_string }}{% else %}{{ _("unknown stage") }}{% endif %}</span></dd>
+                                    <dd class="col-sm-9"><span class="badge badge-outline text-workflow-stage"><span class="material-icons-outlined me-1 fs-6">{{ icons.workflow_stage }}</span>{% if item.workflow_stage %}{{ item.workflow_stage.name|translate_localizable_string }}{% else %}{{ _("unknown stage") }}{% endif %}</span></dd>
                                     <dt class="col-sm-3">{{ _("survey mission") | capitalize }}</dt>
                                     <dd class="col-sm-9">
                                         <a

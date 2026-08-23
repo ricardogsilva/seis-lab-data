@@ -37,8 +37,53 @@
     background-color: var(--bs-survey-related-record-color) !important;
 }
 
+.badge.bg-project {
+    background-color: var(--bs-project-color-dark) !important;
+    color: #fff !important;
+}
+
+.badge.bg-survey-mission {
+    background-color: var(--bs-survey-mission-color-dark) !important;
+    color: #fff !important;
+}
+
+.badge.bg-survey-related-record {
+    background-color: var(--bs-survey-related-record-color-dark) !important;
+    color: #fff !important;
+}
+
 .resource-type-bar {
     height: 32px;
+}
+
+.list-item-stripe {
+    border-left-width: 6px !important;
+    border-left-style: solid !important;
+}
+
+.list-item-stripe-project {
+    border-left-color: var(--bs-project-color) !important;
+}
+
+.list-item-stripe-survey-mission {
+    border-left-color: var(--bs-survey-mission-color) !important;
+}
+
+.list-item-stripe-survey-related-record {
+    border-left-color: var(--bs-survey-related-record-color) !important;
+}
+
+.list-item-stripe-dataset-category {
+    border-left-color: var(--bs-dataset-category-color) !important;
+}
+
+.list-item-stripe-workflow-stage {
+    border-left-color: var(--bs-workflow-stage-color) !important;
+}
+
+.badge-outline {
+    background-color: transparent !important;
+    border: 1px solid currentColor;
 }
 
 .nav-link-project:hover,

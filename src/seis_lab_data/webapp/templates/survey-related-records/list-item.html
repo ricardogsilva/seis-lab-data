@@ -4,7 +4,7 @@
         class="col"
         data-signals:is-valid-id{{ id_ }}="{{ 'true' if item.validation_result.is_valid else 'false' }}"
 >
-    <div class="card mb-3 position-relative">
+    <div class="card mb-3 position-relative list-item-stripe list-item-stripe-survey-related-record">
         <div class="form-check position-absolute top-0 start-0 m-2">
             <input
                     type="checkbox"
@@ -20,17 +20,15 @@
             </div>
             <div class="col-md-9">
                 <div class="card-body">
-                    <h5 class="card-title">{{ item.name|translate_localizable_string|default(_("name not available"), True) }}</h5>
+                    <h5 class="card-title"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.survey_related_records }}</span>{{ item.name|translate_localizable_string|default(_("name not available"), True) }}</h5>
                     <div class="row justify-content-between">
-                        <div class="d-flex align-items-center flex-wrap gap-2">
-                            <span class="badge bg-dataset-category"><span class="material-icons-outlined me-1 fs-6">{{ icons.dataset_category }}</span>{% if item.dataset_category %}{{ item.dataset_category.name | translate_localizable_string }}{% else %}{{ _("unknown category") }}{% endif %}</span>
-                            <span class="badge bg-workflow-stage"><span class="material-icons-outlined me-1 fs-6">{{ icons.workflow_stage }}</span>{% if item.workflow_stage %}{{ item.workflow_stage.name | translate_localizable_string }}{% else %}{{ _("unknown stage") }}{% endif %}</span>
-                        </div>
-                        <div class="card-text my-2">
-                            <span class="material-icons-outlined me-1">{{ icons.projects }}</span>
-                            {{ item.survey_mission.project.name | translate_localizable_string }}
-                            <span class="material-icons-outlined me-1">{{ icons.survey_missions }}</span>
-                            {{ item.survey_mission.name | translate_localizable_string }}
+                        <div class="d-flex align-items-center flex-wrap gap-2 my-2">
+                            <a href="{{ url_for('projects:detail', project_id=item.survey_mission.project.id) }}" class="badge bg-project text-decoration-none">
+                                <span class="material-icons-outlined me-1 fs-6">{{ icons.projects }}</span>{{ item.survey_mission.project.name | translate_localizable_string }}
+                            </a>
+                            <a href="{{ url_for('survey_missions:detail', survey_mission_id=item.survey_mission.id) }}" class="badge bg-survey-mission text-decoration-none">
+                                <span class="material-icons-outlined me-1 fs-6">{{ icons.survey_missions }}</span>{{ item.survey_mission.name | translate_localizable_string }}
+                            </a>
                         </div>
 
 
@@ -53,6 +51,10 @@
                     </div>
                     <div class="row">
                         <div class="col-12">
+                            <div class="d-flex align-items-center flex-wrap gap-2 my-2">
+                                <span class="badge badge-outline text-dataset-category"><span class="material-icons-outlined me-1 fs-6">{{ icons.dataset_category }}</span>{% if item.dataset_category %}{{ item.dataset_category.name | translate_localizable_string }}{% else %}{{ _("unknown category") }}{% endif %}</span>
+                                <span class="badge badge-outline text-workflow-stage"><span class="material-icons-outlined me-1 fs-6">{{ icons.workflow_stage }}</span>{% if item.workflow_stage %}{{ item.workflow_stage.name | translate_localizable_string }}{% else %}{{ _("unknown stage") }}{% endif %}</span>
+                            </div>
                             <ul class="list-unstyled">
                                 <li class="card-text">
                                     <small class="text-body-secondary">

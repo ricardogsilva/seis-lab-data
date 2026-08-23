@@ -5,8 +5,8 @@
         <div class="card-body">
             <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
                 <h5 class="card-title mb-0">{{ item.name|default(_("name not available"), True) }}</h5>
-                <span class="badge bg-dataset-category">{{ item.dataset_category.name.en }}</span>
-                <span class="badge bg-workflow-stage">{{ item.workflow_stage.name.en }}</span>
+                <span class="badge badge-outline text-dataset-category">{{ item.dataset_category.name.en }}</span>
+                <span class="badge badge-outline text-workflow-stage">{{ item.workflow_stage.name.en }}</span>
             </div>
             <p class="card-text text-truncate mb-1">
                 <small class="text-muted">{{ _("media type") | capitalize }}:</small> {{ item.media_type }}

@@ -4,7 +4,7 @@
         class="col"
         data-signals:is-valid-id{{ id_ }}="{{ 'true' if item.validation_result.is_valid else 'false' }}"
 >
-    <div class="card mb-3">
+    <div class="card mb-3 list-item-stripe list-item-stripe-project">
         <div class="row g-0">
             <div class="col-md-4">
                 <div class="placeholder-rectangle bg-secondary"></div>
@@ -12,8 +12,8 @@
             <div class="col-md-8">
                 <div class="card-body">
                     <div class="row justify-content-between">
-                        <div class="col-4">
-                            <h5 class="card-title">{{ item.name|translate_localizable_string|default(_("name not available"), True) }}</h5>
+                        <div class="col-8">
+                            <h5 class="card-title text-truncate"><span class="material-icons-outlined me-1" aria-hidden="true">{{ icons.projects }}</span>{{ item.name|translate_localizable_string|default(_("name not available"), True) }}</h5>
                         </div>
                         <div class="col-4">
                             <small class="text-body-secondary"><span
