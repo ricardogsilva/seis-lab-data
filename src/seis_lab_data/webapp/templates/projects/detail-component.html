@@ -1,5 +1,5 @@
 {% import "macros.html" as macros %}
-{% import "macros-buttons-list-items.html" as macros_buttons_list_items %}
+{% import "macros-buttons.html" as macros_buttons %}
 {% import "macros-maps.html" as macros_maps %}
 {% from "macros/search.html" import search_component %}
 <div
@@ -92,43 +92,47 @@
         </div>
     </div>
     <div class="col-3">
-        <h5>{{ _("actions") | capitalize }}</h5>
-        <div
-                class="list-group mb-3"
-                data-signals:deleting="false"
-                data-signals:validating="false"
-        >
-            {% if permissions.can_update %}
-                <a
-                        class="list-group-item list-group-item-action list-group-item-info"
-                        href="{{ url_for('projects:get_update_form', project_id=item.id) }}"
-                        aria-label="update-item"
-                        data-attr:class="$status === 'under_validation' ? 'list-group-item list-group-item-action list-group-item-info disabled' : 'list-group-item list-group-item-action list-group-item-info'"
-                        data-attr:aria-disabled="$status === 'under_validation'"
-                        data-attr:tabindex="$status === 'under_validation' ? '-1' : null"
-                ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit project") | capitalize }}
-                </a>
-            {% endif %}
-            {% if permissions.can_create_children %}
-                <a
-                        class="list-group-item list-group-item-action list-group-item-info"
-                        href="{{ url_for('survey_missions:get_creation_form', project_id=item.id) }}"
-                        aria-label="new-item"
-                >
-                    <span class="material-icons-outlined me-1">{{ icons.survey_missions }}</span>{{ _("add new survey mission") | capitalize }}
-                </a>
-            {% endif %}
-            {% if permissions.can_delete %}
-                {{ macros_buttons_list_items.render_delete_item_button(
-                deletion_url=url_for("projects:detail", project_id=item.id) ~ "?request_id=" ~ request_id,
-                signal_name="deleting",
-                idle_message="delete project",
-                running_message="deleting project...",
-                generated_csrf_token=csrf_token(request),
-                modal_dialog_title=_("delete project"),
-                modal_dialog_confirmation_text=_("are you sure you want to delete this project?")
-            ) }}
-            {% endif %}
+        <div class="card border-0 mb-5">
+            <div
+                    class="card-body p-0 d-grid gap-2"
+                    data-signals:deleting="false"
+                    data-signals:validating="false"
+            >
+                <h5 class="card-title">{{ _("actions") | capitalize }}</h5>
+                <div class="d-grid gap-2">
+                    {% if permissions.can_update %}
+                        <a
+                                class="btn btn-info"
+                                href="{{ url_for('projects:get_update_form', project_id=item.id) }}"
+                                aria-label="update-item"
+                                data-attr:class="$status === 'under_validation' ? 'btn btn-outline-dark disabled' : 'btn btn-info'"
+                                data-attr:aria-disabled="$status === 'under_validation'"
+                                data-attr:tabindex="$status === 'under_validation' ? '-1' : null"
+                        ><span class="material-icons-outlined me-1">{{ icons.edit_item }}</span>{{ _("edit project") | capitalize }}
+                        </a>
+                    {% endif %}
+                    {% if permissions.can_delete %}
+                        {{ macros_buttons.render_delete_item_button(
+                        deletion_url=url_for("projects:detail", project_id=item.id) ~ "?request_id=" ~ request_id,
+                        signal_name="deleting",
+                        idle_message="delete project",
+                        running_message="deleting project...",
+                        generated_csrf_token=csrf_token(request),
+                        modal_dialog_title=_("delete project"),
+                        modal_dialog_confirmation_text=_("are you sure you want to delete this project?")
+                    ) }}
+                    {% endif %}
+                </div>
+                {% if permissions.can_create_children %}
+                    <a
+                            class="btn btn-primary mt-3"
+                            href="{{ url_for('survey_missions:get_creation_form', project_id=item.id) }}"
+                            aria-label="new-item"
+                    >
+                        <span class="material-icons-outlined me-1">{{ icons.new_item }}</span>{{ _("add new survey mission") | capitalize }}
+                    </a>
+                {% endif %}
+            </div>
         </div>
         <h5>{{ _("info") | capitalize }}</h5>
         <script>

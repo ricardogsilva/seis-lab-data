@@ -135,17 +135,19 @@ Users with create permission are linked to /projects/new, which is a separate st
             {% include "projects/list-component.html" %}
         </div>
         <div class="col-3">
-            <h5>{{ _("actions") | capitalize }}</h5>
-            <div class="list-group mb-3">
-                {% if user_can_create %}
-                    <a
-                            class="list-group-item list-group-item-action list-group-item-info"
-                            href="{{ url_for('projects:get_creation_form') }}"
-                            aria-label="new-project"
-                    >
-                        <span class="material-icons-outlined me-1">{{ icons.new_item }}</span>{{ _("Add new project") | capitalize }}
-                    </a>
-                {% endif %}
+            <div class="card border-0 mb-5">
+                <div class="card-body p-0 d-grid gap-2">
+                    <h5 class="card-title">{{ _("actions") | capitalize }}</h5>
+                    {% if user_can_create %}
+                        <a
+                                class="btn btn-primary"
+                                href="{{ url_for('projects:get_creation_form') }}"
+                                aria-label="new-project"
+                        >
+                            <span class="material-icons-outlined me-1">{{ icons.new_item }}</span>{{ _("Add new project") | capitalize }}
+                        </a>
+                    {% endif %}
+                </div>
             </div>
             <h5>{{ _("info") | capitalize }}</h5>
             <ul class="list-group">

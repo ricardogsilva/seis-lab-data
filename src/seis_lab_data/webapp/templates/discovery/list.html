@@ -62,9 +62,9 @@ Users with create permission are linked to /asset-discovery-configurations/new, 
             {% include "discovery/list-component.html" %}
         </div>
         <div class="col-3">
-            <div class="card border-0 mb-3">
-                <h5>{{ _("actions") | capitalize }}</h5>
+            <div class="card border-0 mb-5">
                 <div class="card-body p-0 d-grid gap-2">
+                    <h5 class="card-title">{{ _("actions") | capitalize }}</h5>
                     {% if permissions.can_create %}
                         <a
                                 class="btn btn-primary"
