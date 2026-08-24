@@ -19,6 +19,7 @@ dependencies = [
     "datastar-py>=0.6.5",
     "dramatiq[redis,watch]>=1.18.0",
     "faker>=38.0.0",
+    "fastapi>=0.141.1",
     "geoalchemy2>=0.18.0",
     "httpx>=0.28.1",
     "itsdangerous>=2.2.0",

@@ -13,6 +13,7 @@ from starlette.applications import Starlette
 from starlette_babel.contrib.jinja import configure_jinja_env
 from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.routing import (
     Mount,
@@ -41,6 +42,7 @@ from ..tasks.broker import setup_broker
 
 from . import jinjafilters
 from .auth_backend import OIDCAuthBackend
+from .middleware import PublicURLMiddleware
 from .routes import (
     auth,
     base,
@@ -52,6 +54,7 @@ from .routes.surveyrelatedrecords import routes as records_routes
 from .routes.discovery import routes as discovery_routes
 from .routes.datasetcategories import routes as dataset_category_routes
 from .routes.workflowstages import routes as workflow_stage_routes
+from .stacapi.app import create_api_app_from_settings
 
 
 class State(TypedDict):
@@ -124,6 +127,7 @@ async def lifespan(app: Starlette) -> AsyncIterator[State]:
 
 def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
     setup_broker(settings)
+    api_app = create_api_app_from_settings(settings)
     app = Starlette(
         debug=settings.debug,
         routes=[
@@ -160,9 +164,11 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                 datalist.get_registered_media_types,
                 name="asset_media_types",
             ),
+            Mount("/stac", app=api_app, name="stac"),
         ],
         lifespan=lifespan,
         middleware=[
+            Middleware(PublicURLMiddleware, public_url=str(settings.public_url)),
             Middleware(
                 LocaleMiddleware,
                 locales=settings.locales,
@@ -177,6 +183,7 @@ def create_app_from_settings(settings: config.SeisLabDataSettings) -> Starlette:
                 CSRFProtectMiddleware,
                 csrf_secret=settings.csrf_secret,
             ),
+            Middleware(GZipMiddleware, minimum_size=1000, compresslevel=9),
         ],
     )
     settings.static_dir.mkdir(parents=True, exist_ok=True)
