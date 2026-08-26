@@ -27,11 +27,11 @@ logger = logging.getLogger(__name__)
 def _apply_survey_related_record_filters(
     *,
     statement,
-    survey_mission_id: identifiers.SurveyMissionId | None = None,
+    survey_mission_ids: list[identifiers.SurveyMissionId] | None = None,
     project_id: identifiers.ProjectId | None = None,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
+    spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
     asset_media_type_filter: str | None = None,
@@ -65,9 +65,9 @@ def _apply_survey_related_record_filters(
                 models.SurveyRelatedRecord.bbox_4326.is_(None),
             )
         )
-    if survey_mission_id is not None:
+    if survey_mission_ids:
         statement = statement.where(
-            models.SurveyRelatedRecord.survey_mission_id == survey_mission_id
+            models.SurveyRelatedRecord.survey_mission_id.in_(survey_mission_ids)
         )
     if project_id is not None:
         # aliased so this join doesn't collide with the unaliased SurveyMission
@@ -134,11 +134,11 @@ def _apply_survey_related_record_filters(
 
 
 def _build_survey_related_record_statement(
-    survey_mission_id: identifiers.SurveyMissionId | None = None,
+    survey_mission_ids: list[identifiers.SurveyMissionId] | None = None,
     project_id: identifiers.ProjectId | None = None,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
+    spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
     asset_media_type_filter: str | None = None,
@@ -164,7 +164,7 @@ def _build_survey_related_record_statement(
     )
     statement = _apply_survey_related_record_filters(
         statement=statement,
-        survey_mission_id=survey_mission_id,
+        survey_mission_ids=survey_mission_ids,
         project_id=project_id,
         en_name_filter=en_name_filter,
         pt_name_filter=pt_name_filter,
@@ -202,7 +202,9 @@ def _build_survey_related_record_id_statement(
     """
     return _apply_survey_related_record_filters(
         statement=select(models.SurveyRelatedRecord.id),
-        survey_mission_id=survey_mission_id,
+        survey_mission_ids=(
+            [survey_mission_id] if survey_mission_id is not None else None
+        ),
         en_name_filter=en_name_filter,
         pt_name_filter=pt_name_filter,
         spatial_intersect=spatial_intersect,
@@ -232,14 +234,14 @@ async def _exec_survey_related_record_list(
 
 async def list_published_survey_related_records(
     session: AsyncSession,
-    survey_mission_id: identifiers.SurveyMissionId | None = None,
+    survey_mission_ids: list[identifiers.SurveyMissionId] | None = None,
     project_id: identifiers.ProjectId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
+    spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
     asset_media_type_filter: str | None = None,
@@ -249,7 +251,7 @@ async def list_published_survey_related_records(
     only_data_assets: bool = True,
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     statement = _build_survey_related_record_statement(
-        survey_mission_id=survey_mission_id,
+        survey_mission_ids=survey_mission_ids,
         project_id=project_id,
         en_name_filter=en_name_filter,
         pt_name_filter=pt_name_filter,
@@ -359,14 +361,14 @@ async def count_survey_related_records_matching(
 
 async def list_survey_related_records(
     session: AsyncSession,
-    survey_mission_id: identifiers.SurveyMissionId | None = None,
+    survey_mission_ids: list[identifiers.SurveyMissionId] | None = None,
     project_id: identifiers.ProjectId | None = None,
     page: int = 1,
     page_size: int = 20,
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
+    spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     asset_path_fragment_filter: str | None = None,
     asset_media_type_filter: str | None = None,
@@ -378,7 +380,7 @@ async def list_survey_related_records(
 ) -> tuple[list[models.SurveyRelatedRecord], int | None]:
     """Return all records. Intended for admin use."""
     statement = _build_survey_related_record_statement(
-        survey_mission_id=survey_mission_id,
+        survey_mission_ids=survey_mission_ids,
         project_id=project_id,
         en_name_filter=en_name_filter,
         pt_name_filter=pt_name_filter,

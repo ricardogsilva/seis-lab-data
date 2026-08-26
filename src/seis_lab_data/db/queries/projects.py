@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 def _build_project_statement(
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
+    spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ):
     statement = select(models.Project)
@@ -85,7 +85,7 @@ async def list_published_projects(
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
+    spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.Project], int | None]:
     """Produces a paginated and filterable listing of public projects."""
@@ -104,7 +104,7 @@ async def list_projects(
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
+    spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     only_internal: bool = False,
 ) -> tuple[list[models.Project], int | None]:

@@ -11,6 +11,7 @@ _ERROR_CONTENT: dict[str, Any] = {
 
 ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     401: {"description": "Unauthorized", "content": _ERROR_CONTENT},
+    404: {"description": "Not Found", "content": _ERROR_CONTENT},
     422: {"description": "Unprocessable Entity"},
     500: {"description": "Internal Server Error", "content": _ERROR_CONTENT},
 }

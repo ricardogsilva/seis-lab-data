@@ -955,6 +955,10 @@ async def get_list_component(request: Request):
         internal_filter_kwargs = {}
         filter_query_string = ""
     logger.debug(f"{internal_filter_kwargs=}")
+    if (
+        survey_mission_id := internal_filter_kwargs.pop("survey_mission_id", None)
+    ) is not None:
+        internal_filter_kwargs["survey_mission_ids"] = [survey_mission_id]
     current_page = get_page_from_request_params(request)
     user = request.user if request.user.is_authenticated else None
     settings: config.SeisLabDataSettings = request.state.settings
@@ -1092,6 +1096,11 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
                         ),
                     )
                 )
+            list_filter_kwargs = list_filters.as_kwargs()
+            if (
+                survey_mission_id := list_filter_kwargs.pop("survey_mission_id", None)
+            ) is not None:
+                list_filter_kwargs["survey_mission_ids"] = [survey_mission_id]
             (
                 items,
                 num_total,
@@ -1101,7 +1110,7 @@ class SurveyRelatedRecordCollectionEndpoint(HTTPEndpoint):
                 page=current_page,
                 page_size=settings.pagination_page_size,
                 include_total=True,
-                **list_filters.as_kwargs(),
+                **list_filter_kwargs,
             )
             num_unfiltered_total = (
                 await survey_related_record_ops.list_survey_related_records(

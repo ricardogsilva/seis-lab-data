@@ -403,7 +403,7 @@ async def list_projects(
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
+    spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     only_internal: bool = False,
 ) -> tuple[list[models.Project], int | None]:

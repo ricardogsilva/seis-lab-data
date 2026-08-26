@@ -6,9 +6,16 @@ mounted by our main starlette-based app. Therefore, lifespan is configured
 in the starlette app.
 """
 
-from fastapi import FastAPI
+from fastapi import (
+    FastAPI,
+    Request,
+)
+from starlette.responses import JSONResponse
 
-from ... import config
+from ... import (
+    config,
+    errors,
+)
 from .routers import router
 
 
@@ -36,6 +43,14 @@ def create_api_app_from_settings(settings: config.SeisLabDataSettings) -> FastAP
         servers=[{"url": f"{settings.public_url}/stac"}],
         root_path_in_servers=False,
     )
-    # TODO: add exception handlers
+
+    @app.exception_handler(errors.UserNotAllowedError)
+    async def _private_resource_as_not_found(
+        request: Request, exc: errors.UserNotAllowedError
+    ) -> JSONResponse:
+        # a private resource must be indistinguishable from a nonexistent one
+        # to an anonymous STAC client
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+
     app.include_router(router)
     return app

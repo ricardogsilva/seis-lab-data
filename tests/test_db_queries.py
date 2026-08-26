@@ -45,13 +45,15 @@ async def test_list_survey_missions(
 
 
 @pytest.mark.parametrize(
-    "survey_mission_id_filter, expected_total",
+    "survey_mission_ids_filter, expected_total",
     [
         pytest.param(None, 2),
         pytest.param(
-            identifiers.SurveyMissionId(
-                uuid.UUID("cfe10cd8-5a5e-40e4-807b-7064f94a2edf")
-            ),
+            [
+                identifiers.SurveyMissionId(
+                    uuid.UUID("cfe10cd8-5a5e-40e4-807b-7064f94a2edf")
+                )
+            ],
             1,
         ),
     ],
@@ -61,12 +63,12 @@ async def test_list_survey_missions(
 async def test_list_survey_related_records(
     sample_survey_related_records,
     db_session_maker,
-    survey_mission_id_filter,
+    survey_mission_ids_filter,
     expected_total,
 ):
     async with db_session_maker() as session:
         survey_records, total = await record_queries.list_survey_related_records(
-            session, survey_mission_id=survey_mission_id_filter, include_total=True
+            session, survey_mission_ids=survey_mission_ids_filter, include_total=True
         )
         assert total == expected_total
 

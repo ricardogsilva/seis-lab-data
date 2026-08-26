@@ -3,6 +3,8 @@ import pytest_asyncio
 
 import sqlmodel
 from anyio import Path
+from starlette.applications import Starlette
+from starlette.routing import Mount
 from starlette.testclient import TestClient
 
 from seis_lab_data import (
@@ -30,6 +32,8 @@ from seis_lab_data.db.engine import (
 from seis_lab_data.schemas.user import User
 from seis_lab_data.schemas.identifiers import UserId
 from seis_lab_data.webapp.app import create_app_from_settings
+from seis_lab_data.webapp.stacapi.app import create_api_app_from_settings
+from seis_lab_data.webapp.stacapi.dependencies import get_settings as stac_get_settings
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -81,6 +85,27 @@ def app(settings):
 def test_client(app):
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def stac_api_client(settings):
+    """A TestClient for the STAC FastAPI app, mounted the same way it is in
+    production (`Mount("/stac", app=api_app, name="stac")` - see
+    webapp/app.py), but without any of the main Starlette app's middleware
+    or lifespan (auth, sessions, message broker, jinja/translations), since
+    none of that is relevant to the STAC API. The named Mount is kept
+    because STAC's own link-building relies on `url_for()` resolving
+    through it (see `stacapi/links.py`).
+
+    `get_settings` is overridden instead of relying on
+    `request.state.settings`, which is normally populated by the main app's
+    lifespan.
+    """
+    api_app = create_api_app_from_settings(settings)
+    api_app.dependency_overrides[stac_get_settings] = lambda: settings
+    wrapper_app = Starlette(routes=[Mount("/stac", app=api_app, name="stac")])
+    with TestClient(wrapper_app) as client:
+        yield client
 
 
 @pytest_asyncio.fixture

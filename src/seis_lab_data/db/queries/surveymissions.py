@@ -20,7 +20,7 @@ def _build_survey_mission_statement(
     project_id: identifiers.ProjectId | None = None,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
+    spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ):
     statement = select(models.SurveyMission).options(
@@ -88,7 +88,7 @@ async def list_published_survey_missions(
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
+    spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
 ) -> tuple[list[models.SurveyMission], int | None]:
     statement = _build_survey_mission_statement(
@@ -109,7 +109,7 @@ async def list_survey_missions(
     include_total: bool = False,
     en_name_filter: str | None = None,
     pt_name_filter: str | None = None,
-    spatial_intersect: shapely.Polygon | None = None,
+    spatial_intersect: shapely.Geometry | None = None,
     temporal_extent: filter_schemas.TemporalExtentFilterValue | None = None,
     only_internal: bool = False,
 ) -> tuple[list[models.SurveyMission], int | None]:

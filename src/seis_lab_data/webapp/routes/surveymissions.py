@@ -109,7 +109,7 @@ async def _get_survey_mission_details(
         ) = await survey_related_record_ops.list_survey_related_records(
             session,
             user,
-            survey_mission_id=survey_mission_id,
+            survey_mission_ids=[survey_mission_id],
             include_total=True,
             page=records_current_page,
             page_size=settings.pagination_page_size,
@@ -405,7 +405,7 @@ async def get_mission_records_list_component(request: Request):
         items, num_total = await survey_related_record_ops.list_survey_related_records(
             session,
             initiator=user,
-            survey_mission_id=survey_mission_id,
+            survey_mission_ids=[survey_mission_id],
             page=current_page,
             page_size=settings.pagination_page_size,
             include_total=True,
@@ -415,7 +415,7 @@ async def get_mission_records_list_component(request: Request):
             await survey_related_record_ops.list_survey_related_records(
                 session,
                 initiator=user,
-                survey_mission_id=survey_mission_id,
+                survey_mission_ids=[survey_mission_id],
                 include_total=True,
             )
         )[1]
