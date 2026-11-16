@@ -14,7 +14,7 @@
     <div class="page-layout-main">
         <div class="row mb-5">
             <div class="col">
-                <div class="card{% if item.status.value != "published" %} item-unpublished{% endif %}" data-class:item-unpublished="$status !== 'published'">
+                <div class="card{% if item.status.value != "published" %} item-unpublished{% endif %}" data-view-transition-detail data-class:item-unpublished="$status !== 'published'">
                     {% if item.bbox_4326 is not none or item.preview_bounds is not none %}
                         {# maplibre draws the map into the element - re-fetched details
                            must leave it alone, or morphing them in would remove the map #}

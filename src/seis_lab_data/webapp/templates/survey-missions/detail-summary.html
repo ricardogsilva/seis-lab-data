@@ -3,7 +3,7 @@
 {# its id is what lets the re-rendered summary be morphed into the page #}
 <div id="survey-mission-summary" class="row mb-5">
     <div class="col">
-        <div class="card{% if item.status.value != "published" %} item-unpublished{% endif %}" data-class:item-unpublished="$status !== 'published'">
+        <div class="card{% if item.status.value != "published" %} item-unpublished{% endif %}" data-view-transition-detail data-class:item-unpublished="$status !== 'published'">
             {% if item.bbox_4326 is not none %}
                 {{ macros_maps.render_bbox_display_component(
                     settings.webmap_base_tile_layer_url,

@@ -476,3 +476,152 @@ h1 > .material-icons-outlined {
 .notification .toast-body {
     overflow-wrap: anywhere;
 }
+
+/*
+ * cross-document view transitions, following the catalog hierarchy (see
+ * js/view-transitions.js): the page zooms in on a drill-down and out on a drill-up,
+ * while the elements describing the same resource on both pages morph into each other
+ */
+@view-transition {
+    navigation: auto;
+}
+
+::view-transition-group(root) {
+    animation-duration: 0.35s;
+}
+
+@keyframes sld-view-transition-shrink-out {
+    to {
+        opacity: 0;
+        transform: scale(0.94);
+    }
+}
+
+@keyframes sld-view-transition-grow-out {
+    to {
+        opacity: 0;
+        transform: scale(1.06);
+    }
+}
+
+@keyframes sld-view-transition-shrink-in {
+    from {
+        opacity: 0;
+        transform: scale(1.06);
+    }
+}
+
+@keyframes sld-view-transition-grow-in {
+    from {
+        opacity: 0;
+        transform: scale(0.94);
+    }
+}
+
+/*
+ * besides the whole page, the elements found on a single page of the two, such as a
+ * main card whose list item is not shown by the parent page, zoom with the page
+ */
+html:active-view-transition-type(drill-down)::view-transition-old(root),
+html:active-view-transition-type(drill-down)::view-transition-old(*):only-child {
+    animation: 0.35s ease-in both sld-view-transition-grow-out;
+}
+
+html:active-view-transition-type(drill-down)::view-transition-new(root),
+html:active-view-transition-type(drill-down)::view-transition-new(*):only-child {
+    animation: 0.35s ease-out both sld-view-transition-grow-in;
+}
+
+html:active-view-transition-type(drill-up)::view-transition-old(root),
+html:active-view-transition-type(drill-up)::view-transition-old(*):only-child {
+    animation: 0.35s ease-in both sld-view-transition-shrink-out;
+}
+
+html:active-view-transition-type(drill-up)::view-transition-new(root),
+html:active-view-transition-type(drill-up)::view-transition-new(*):only-child {
+    animation: 0.35s ease-out both sld-view-transition-shrink-in;
+}
+
+::view-transition-group(sld-item-card),
+::view-transition-group(sld-item-title),
+::view-transition-group(sld-item-visual) {
+    animation-duration: 0.45s;
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* the card above the rest of the page while it moves */
+::view-transition-group(sld-item-card) {
+    z-index: 1;
+}
+
+::view-transition-group(sld-item-title),
+::view-transition-group(sld-item-visual) {
+    z-index: 2;
+}
+
+/* text scaled by its height, so that it grows instead of being stretched */
+::view-transition-old(sld-item-title),
+::view-transition-new(sld-item-title) {
+    width: auto;
+    height: 100%;
+    object-fit: none;
+    object-position: left center;
+}
+
+/* the site header stays in place, its content swapped without animation */
+/*
+ * the name makes the header a stacking context, which would paint its dropdown menus
+ * below the positioned elements of the page, unless it is stacked above them
+ */
+header {
+    view-transition-name: sld-site-header;
+    position: relative;
+    z-index: 1020;
+}
+
+::view-transition-group(sld-site-header),
+::view-transition-old(sld-site-header),
+::view-transition-new(sld-site-header) {
+    animation: none;
+}
+
+::view-transition-group(sld-site-header) {
+    z-index: 3;
+}
+
+@keyframes sld-view-transition-fade-out {
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes sld-view-transition-fade-in {
+    from {
+        opacity: 0;
+    }
+}
+
+/* the breadcrumbs cross-fade in place, without zooming with the page */
+nav[aria-label="breadcrumbs"] {
+    view-transition-name: sld-breadcrumbs;
+}
+
+::view-transition-group(sld-breadcrumbs) {
+    animation-duration: 0.35s;
+}
+
+html:active-view-transition-type(drill-down)::view-transition-old(sld-breadcrumbs):only-child,
+html:active-view-transition-type(drill-up)::view-transition-old(sld-breadcrumbs):only-child {
+    animation: 0.35s ease both sld-view-transition-fade-out;
+}
+
+html:active-view-transition-type(drill-down)::view-transition-new(sld-breadcrumbs):only-child,
+html:active-view-transition-type(drill-up)::view-transition-new(sld-breadcrumbs):only-child {
+    animation: 0.35s ease both sld-view-transition-fade-in;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    @view-transition {
+        navigation: none;
+    }
+}
